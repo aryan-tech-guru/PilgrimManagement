@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempleSafe // TACTICAL_NEXUS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        sans: ['Rajdhani', 'sans-serif'],
+                        mono: ['Share Tech Mono', 'monospace']
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#030508',
+                            panel: '#0a0f16',
+                            cyan: '#00f0ff',
+                            magenta: '#ff003c',
+                            yellow: '#fcee0a',
+                            green: '#00ff66',
+                            grid: 'rgba(0, 240, 255, 0.05)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #030508; border-left: 1px solid rgba(0,240,255,0.1); }
+        ::-webkit-scrollbar-thumb { background: #00f0ff; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fcee0a; }
+        
+        body { background-color: #030508; color: #00f0ff; text-shadow: 0 0 2px rgba(0, 240, 255, 0.4); }
+
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.3) 51%);
+            background-size: 100% 4px; pointer-events: none; z-index: 9999; opacity: 0.6;
+        }
+
+        .cyber-panel {
+            background: rgba(10, 15, 22, 0.8); border: 1px solid rgba(0, 240, 255, 0.2);
+            position: relative; backdrop-filter: blur(5px);
+        }
+        
+        .cyber-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border: 1px solid #00f0ff;
+            clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+            pointer-events: none; box-shadow: inset 0 0 15px rgba(0,240,255,0.1);
+        }
+
+        input[type=range] { -webkit-appearance: none; background: rgba(0, 240, 255, 0.1); border: 1px solid rgba(0, 240, 255, 0.3); height: 8px; width: 100%; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 10px; background: #00f0ff; cursor: pointer; box-shadow: 0 0 8px #00f0ff; border: 1px solid #fff; }
+
+        .zone-polygon { transition: all 0.2s linear; cursor: pointer; stroke-width: 1.5; stroke-dasharray: 4 2; }
+        .zone-polygon:hover { stroke-dasharray: 0; stroke-width: 3; filter: drop-shadow(0 0 10px currentColor); transform: translate(1px, -1px); }
+        .selected-zone { stroke-dasharray: 0; stroke-width: 3; animation: pulse-border 1.5s infinite alternate; }
+
+        @keyframes pulse-border { 0% { filter: drop-shadow(0 0 5px currentColor); stroke-width: 2; } 100% { filter: drop-shadow(0 0 20px currentColor); stroke-width: 4; } }
+        @keyframes glitch-anim { 0% { transform: translate(0) } 20% { transform: translate(-2px, 1px) } 40% { transform: translate(-1px, -1px) } 60% { transform: translate(2px, 1px) } 80% { transform: translate(1px, -1px) } 100% { transform: translate(0) } }
+        .anomaly-glitch { animation: glitch-anim 0.3s infinite; fill: rgba(255, 0, 60, 0.4) !important; stroke: #ff003c !important; }
+
+        .cam-static { background-image: repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,0.05), rgba(0,0,0,0.1) 1px); animation: staticNoise 0.2s infinite; }
+        @keyframes staticNoise { 0% { background-position: 0 0; } 100% { background-position: 10px 10px; } }
+
+        .radar-sweep { transform-origin: center; animation: sweep 4s infinite linear; background: conic-gradient(from 0deg, transparent 70%, rgba(0, 240, 255, 0.4) 100%); border-radius: 50%; }
+        @keyframes sweep { to { transform: rotate(360deg); } }
+
+        .tech-decor { position: absolute; background: #00f0ff; }
+        input:focus, select:focus { box-shadow: 0 0 10px rgba(0, 240, 255, 0.5); border-color: #00f0ff !important; outline: none; }
+
+        .capacity-bar { background: repeating-linear-gradient(45deg, #00f0ff, #00f0ff 10px, transparent 10px, transparent 20px); background-size: 28px 28px; animation: move-stripes 2s linear infinite; }
+        @keyframes move-stripes { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
+
+        @keyframes custom-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-custom-bounce { animation: custom-bounce 2s infinite ease-in-out; }
+        @keyframes eq { 0% { height: 2px; } 100% { height: 100%; } }
+        .eq-bar { animation: eq 0.5s infinite alternate ease-in-out; }
+    </style>
+</head>
+<body class="selection:bg-cyber-magenta selection:text-white min-h-screen overflow-x-hidden bg-cyber-bg pb-10">
+    <div class="scanlines"></div>
+
+    <div id="login-screen" class="fixed inset-0 z-[500] bg-cyber-bg flex items-center justify-center font-mono p-4 transition-all duration-1000">
+        <div class="cyber-panel p-8 w-full max-w-md relative overflow-hidden shadow-[0_0_50px_rgba(0,240,255,0.1)]">
+            <div class="tech-decor w-4 h-4 border-t-2 border-l-2 border-cyber-cyan top-0 left-0 bg-transparent"></div>
+            <div class="tech-decor w-4 h-4 border-b-2 border-r-2 border-cyber-cyan bottom-0 right-0 bg-transparent"></div>
+
+            <div class="text-center mb-8">
+                <div class="inline-block relative mb-4">
+                    <i class="fa-solid fa-user-shield text-5xl text-cyber-cyan drop-shadow-[0_0_15px_#00f0ff]"></i>
+                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-cyber-green rounded-full animate-ping"></div>
+                </div>
+                <h2 class="text-xl font-bold tracking-[0.3em] text-white uppercase">Access_Gateway</h2>
+                <p class="text-[10px] text-cyber-cyan/50 mt-2 tracking-widest">SECURE UPLINK // WIT-NODE: SOLAPUR</p>
+            </div>
+
+            <div class="space-y-6" id="login-form">
+                <div>
+                    <label class="text-[10px] text-cyber-cyan block mb-2 font-bold uppercase">> OPERATOR_IDENTIFIER</label>
+                    <input type="text" id="admin-user" placeholder="ENTER IDENTIFIER (e.g. ARYAN_C49)" 
+                           class="w-full bg-black border border-cyber-cyan/30 p-3 text-white outline-none focus:border-cyber-cyan transition-all font-mono uppercase">
+                </div>
+                <div>
+                    <label class="text-[10px] text-cyber-cyan block mb-2 font-bold uppercase">> SECURITY_ENCRYPTION_KEY</label>
+                    <input type="password" id="admin-pass" placeholder="ENTER ACCESS CODE" 
+                           class="w-full bg-black border border-cyber-cyan/30 p-3 text-white outline-none focus:border-cyber-cyan transition-all placeholder:text-cyber-cyan/20">
+                </div>
+                <button onclick="initiateBootSequence()" id="login-btn"
+                        class="w-full bg-cyber-cyan/10 border border-cyber-cyan text-cyber-cyan py-4 font-bold hover:bg-cyber-cyan hover:text-black transition-all tracking-[0.4em] uppercase text-sm shadow-[inset_0_0_10px_rgba(0,240,255,0.2)]">
+                    [ ESTABLISH_UPLINK ]
+                </button>
+            </div>
+
+            <div id="boot-logs" class="mt-6 text-[10px] text-cyber-cyan/60 h-32 overflow-hidden hidden border-t border-cyber-cyan/20 pt-4 font-mono leading-relaxed">
+                <div id="log-stream"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-ui" class="flex flex-col p-4 gap-6 min-h-screen w-full relative z-10 opacity-0 transition-opacity duration-1000 pointer-events-none max-w-[1600px] mx-auto">
+        
+        <header class="sticky top-4 z-[100] cyber-panel px-6 py-3 flex flex-col md:flex-row justify-between items-center shrink-0 shadow-[0_10px_30px_rgba(3,5,8,0.9)] backdrop-blur-md">
+            <div class="flex items-center gap-6 mb-4 md:mb-0">
+                <div class="relative flex items-center justify-center w-12 h-12 border border-cyber-cyan rounded-sm shadow-[0_0_10px_rgba(0,240,255,0.5)] bg-black">
+                    <i class="fa-solid fa-satellite-dish text-cyber-cyan text-xl animate-pulse"></i>
+                    <div class="tech-decor w-2 h-0.5 top-0 left-0"></div>
+                    <div class="tech-decor w-2 h-0.5 bottom-0 right-0"></div>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-[0.2em] uppercase">Temple_Sync <span class="text-cyber-cyan font-mono text-sm tracking-normal ml-2">v9.9.5</span></h1>
+                    <div class="flex gap-4 font-mono text-xs mt-1 text-cyber-cyan/70">
+                        <span>SYS.MODE: <span class="text-cyber-green font-bold text-shadow-md">ACTIVE</span></span>
+                        <span>UPLINK: <span class="text-cyber-yellow">STABLE</span></span>
+                        <span>NODE: <span class="text-white">WIT-NODE // SOLAPUR</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div class="font-mono text-right hidden lg:block">
+                    <div class="text-xs text-cyber-cyan/60 mb-1">CURRENT_OPERATOR</div>
+                    <div id="display-operator" class="bg-cyber-cyan text-black px-3 py-1 font-bold text-sm tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.6)]">--</div>
+                </div>
+                <div class="border-l border-cyber-cyan/30 pl-6 text-center font-mono">
+                    <div id="hud-time" class="text-xl text-white font-bold tracking-widest">00:00:00</div>
+                    <div id="hud-date" class="text-[10px] text-cyber-cyan/60 uppercase">YYYY.MM.DD</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col xl:flex-row gap-6">
+            
+            <div class="w-full xl:w-2/3 flex flex-col gap-4">
+                
+                <div class="cyber-panel px-6 py-2 flex flex-wrap justify-between items-center text-xs font-mono border-b border-cyber-cyan/20">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-sun text-cyber-yellow text-lg"></i>
+                        <span class="text-cyber-cyan/70 tracking-widest">ENV_STAT: <span class="text-white font-bold">34°C / CLEAR</span></span>
+                    </div>
+                    <div class="flex gap-6">
+                        <span class="text-cyber-cyan/70 tracking-widest">WIND: <span class="text-white font-bold">12 KM/H</span></span>
+                        <span class="text-cyber-cyan/70 tracking-widest">HUMIDITY: <span class="text-white font-bold">45%</span></span>
+                        <span class="text-cyber-cyan/70 tracking-widest">VISIBILITY: <span class="text-cyber-green font-bold">OPTIMAL</span></span>
+                    </div>
+                </div>
+
+                <div class="cyber-panel flex flex-col relative overflow-hidden group min-h-[500px]">
+                    <div class="tech-decor w-4 h-4 border-t-2 border-l-2 border-cyber-cyan top-2 left-2 bg-transparent"></div>
+                    <div class="tech-decor w-4 h-4 border-b-2 border-r-2 border-cyber-cyan bottom-2 right-2 bg-transparent"></div>
+                    
+                    <div class="px-6 py-2 border-b border-cyber-cyan/20 flex justify-between items-center bg-cyber-cyan/5">
+                        <h3 class="font-mono text-sm tracking-widest text-cyber-cyan font-bold"><i class="fa-solid fa-crosshairs mr-2"></i>SPATIAL_ENGINE // LIVE_TELEMETRY</h3>
+                        <div class="flex gap-2">
+                            <span class="bg-cyber-magenta/20 text-cyber-magenta border border-cyber-magenta text-[10px] px-2 py-0.5 font-mono transition-colors duration-500" id="global-threat">THREAT: LOW</span>
+                            <span class="bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan text-[10px] px-2 py-0.5 font-mono animate-pulse">LIDAR_SYNCED</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 relative bg-cyber-bg flex items-center justify-center overflow-hidden z-20 p-4">
+                        <div id="map-instruction" class="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-500 bg-black/40 backdrop-blur-[2px]">
+                            <div class="border border-cyber-cyan bg-cyber-bg/90 px-8 py-4 shadow-[0_0_30px_rgba(0,240,255,0.3)] animate-custom-bounce text-center flex flex-col items-center gap-2 rounded-sm relative">
+                                <div class="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-cyber-cyan"></div>
+                                <div class="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-cyber-cyan"></div>
+                                <i class="fa-solid fa-hand-pointer text-cyber-cyan text-3xl animate-pulse drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]"></i>
+                                <p class="text-white font-bold tracking-[0.2em] text-lg uppercase">Operator_Action_Required</p>
+                                <p class="text-cyber-cyan font-mono text-sm tracking-widest uppercase bg-cyber-cyan/10 px-3 py-1 border border-cyber-cyan/30">[ CLICK_SECTOR_TO_TARGET ]</p>
+                            </div>
+                        </div>
+
+                        <div class="absolute w-[600px] h-[600px] radar-sweep pointer-events-none mix-blend-screen opacity-40"></div>
+                        
+                        <svg viewBox="0 0 800 600" class="w-full h-full max-h-[600px] relative z-10 cursor-crosshair" id="templeMap">
+                            <defs>
+                                <pattern id="hex-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                    <path d="M15 0 L30 7.5 L30 22.5 L15 30 L0 22.5 L0 7.5 Z" fill="none" stroke="rgba(0,240,255,0.05)" stroke-width="1"/>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#hex-grid)" />
+                            
+                            <g id="zones-group">
+                                <polygon id="zone-main" points="300,200 500,200 550,300 500,400 300,400 250,300" class="zone-polygon" fill="rgba(255, 0, 60, 0.15)" stroke="#ff003c" data-zone="Main Shrine" data-status="CRITICAL_MASS" data-crowd="8450" data-color="magenta" onclick="selectZone(this)"/>
+                                <polygon id="zone-north" points="250,50 550,50 500,180 300,180" class="zone-polygon" fill="rgba(252, 238, 10, 0.1)" stroke="#fcee0a" data-zone="North Plaza" data-status="CAPACITY_WARN" data-crowd="4120" data-color="yellow" onclick="selectZone(this)"/>
+                                <polygon id="zone-south" points="300,420 500,420 550,550 250,550" class="zone-polygon" fill="rgba(0, 240, 255, 0.05)" stroke="#00f0ff" data-zone="South Entry Gate" data-status="NOMINAL" data-crowd="1200" data-color="cyan" onclick="selectZone(this)"/>
+                                <polygon id="zone-hall" points="50,200 230,200 280,300 230,400 50,400" class="zone-polygon" fill="rgba(0, 240, 255, 0.05)" stroke="#00f0ff" data-zone="Main Hallway" data-status="NOMINAL" data-crowd="890" data-color="cyan" onclick="selectZone(this)"/>
+                                <polygon id="zone-meditation" points="570,200 750,200 750,400 570,400 520,300" class="zone-polygon" fill="rgba(252, 238, 10, 0.1)" stroke="#fcee0a" data-zone="Meditation Area" data-status="CAPACITY_WARN" data-crowd="5600" data-color="yellow" onclick="selectZone(this)"/>
+                            </g>
+
+                            <g id="active-units" pointer-events="none">
+                                <circle cx="0" cy="0" r="4" fill="#00f0ff" filter="drop-shadow(0 0 5px #00f0ff)"><animateMotion path="M 140 300 L 140 250 L 250 250 L 250 300 Z" dur="15s" repeatCount="indefinite" /></circle>
+                                <circle cx="0" cy="0" r="4" fill="#00f0ff" filter="drop-shadow(0 0 5px #00f0ff)"><animateMotion path="M 350 480 L 450 480 L 450 500 L 350 500 Z" dur="8s" repeatCount="indefinite" /></circle>
+                                <circle cx="400" cy="100" r="5" fill="#00ff66" filter="drop-shadow(0 0 8px #00ff66)"><animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" /></circle>
+                                <circle cx="0" cy="0" r="4" fill="#00ff66" filter="drop-shadow(0 0 5px #00ff66)"><animateMotion path="M 520 350 L 520 250" dur="10s" repeatCount="indefinite" autoReverse="true"/></circle>
+                            </g>
+
+                            <g pointer-events="none" font-family="Share Tech Mono" font-size="12" fill="white">
+                                <text x="400" y="305" text-anchor="middle" font-weight="bold" fill="#ff003c" filter="drop-shadow(0 0 5px #ff003c)">[ MAIN_SHRINE ]</text>
+                                <text x="400" y="125" text-anchor="middle" fill="#fcee0a">[ NORTH_PLAZA ]</text>
+                                <text x="400" y="495" text-anchor="middle" fill="#00f0ff">[ SOUTH_ENTRY ]</text>
+                                <text x="140" y="305" text-anchor="middle" fill="#00f0ff">[ HALLWAY_01 ]</text>
+                                <text x="660" y="305" text-anchor="middle" fill="#fcee0a">[ MEDITATION_ZN ]</text>
+                            </g>
+                        </svg>
+
+                        <div class="absolute bottom-4 left-4 border border-cyber-cyan/30 bg-cyber-bg/80 p-3 font-mono text-[10px] uppercase backdrop-blur-md hidden md:block">
+                            <div class="text-cyber-cyan/60 border-b border-cyber-cyan/30 mb-2 pb-1">THREAT MATRIX</div>
+                            <div class="flex items-center gap-2 mb-1 text-cyber-magenta"><div class="w-2 h-2 bg-cyber-magenta shadow-[0_0_5px_#ff003c]"></div> CRITICAL_MASS</div>
+                            <div class="flex items-center gap-2 mb-1 text-cyber-yellow"><div class="w-2 h-2 bg-cyber-yellow shadow-[0_0_5px_#fcee0a]"></div> CAPACITY_WARN</div>
+                            <div class="flex items-center gap-2 mb-2 text-cyber-cyan"><div class="w-2 h-2 bg-cyber-cyan shadow-[0_0_5px_#00f0ff]"></div> NOMINAL_FLOW</div>
+                            
+                            <div class="text-cyber-cyan/60 border-b border-cyber-cyan/30 mb-2 pb-1 mt-2">ACTIVE UNITS</div>
+                            <div class="flex items-center gap-2 mb-1 text-cyber-cyan"><div class="w-2 h-2 rounded-full bg-cyber-cyan shadow-[0_0_5px_#00f0ff]"></div> SECURITY</div>
+                            <div class="flex items-center gap-2 text-cyber-green"><div class="w-2 h-2 rounded-full bg-cyber-green shadow-[0_0_5px_#00ff66]"></div> MEDICAL</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="h-16 cyber-panel flex items-center px-6 gap-6 shrink-0 font-mono">
+                    <div class="text-xs text-cyber-cyan w-32 shrink-0">
+                        GLOBAL_CAPACITY<br>
+                        <span class="text-xl font-bold text-white" id="global-total">20,260</span>
+                    </div>
+                    <div class="flex-1 h-3 bg-black border border-cyber-cyan/30 relative overflow-hidden hidden sm:block">
+                        <div class="absolute top-0 left-0 h-full capacity-bar w-[78%] transition-all duration-1000" id="capacity-fill"></div>
+                        <div class="absolute top-0 left-[85%] h-full w-[1px] bg-cyber-magenta shadow-[0_0_5px_#ff003c]"></div>
+                    </div>
+                    <div class="text-right text-xs w-24 shrink-0">
+                        <span class="text-cyber-cyan/60">LOAD_STAT</span><br>
+                        <span class="text-cyber-yellow font-bold transition-colors duration-500" id="load-percent">78.5%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full xl:w-1/3 flex flex-col gap-6">
+                
+                <div class="cyber-panel flex flex-col relative overflow-visible">
+                    <div class="px-4 py-2 border-b border-cyber-cyan/20 flex items-center gap-3 bg-cyber-cyan/5">
+                        <i class="fa-solid fa-terminal text-cyber-cyan"></i>
+                        <h3 class="font-mono text-sm tracking-widest text-cyber-cyan font-bold uppercase">CMD_Override</h3>
+                    </div>
+                    
+                    <div class="p-5 flex flex-col gap-4">
+                        <div class="border border-cyber-cyan/30 bg-black p-3 relative font-mono">
+                            <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-cyber-cyan"></div>
+                            <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-cyber-cyan"></div>
+                            
+                            <p class="text-[10px] text-cyber-cyan/60 uppercase">TGT_LOCK:</p>
+                            <p id="targetZoneText" class="text-sm font-bold text-cyber-cyan/70 tracking-widest animate-pulse">> SELECT_MAP_SECTOR <</p>
+                            
+                            <div class="flex justify-between mt-2 text-xs border-t border-cyber-cyan/20 pt-2">
+                                <span class="text-cyber-cyan/60">STAT: <span id="targetStatus" class="font-bold text-white">--</span></span>
+                                <span class="text-cyber-cyan/60">MASS: <span id="targetCrowd" class="font-bold text-white">--</span></span>
+                            </div>
+                        </div>
+
+                        <div class="border border-cyber-cyan/20 p-3 bg-black flex items-center justify-between">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-cyber-cyan/60 font-mono uppercase">RADIO_COMMS</span>
+                                <span class="text-xs font-mono text-cyber-green font-bold animate-pulse">SEC_CHANNEL_1 // SECURE</span>
+                            </div>
+                            <div class="flex gap-1 items-end h-6">
+                                <div class="w-1.5 bg-cyber-cyan eq-bar" style="animation-delay: 0.1s;"></div>
+                                <div class="w-1.5 bg-cyber-cyan eq-bar" style="animation-delay: 0.3s;"></div>
+                                <div class="w-1.5 bg-cyber-cyan eq-bar" style="animation-delay: 0.0s;"></div>
+                                <div class="w-1.5 bg-cyber-cyan eq-bar" style="animation-delay: 0.4s;"></div>
+                                <div class="w-1.5 bg-cyber-cyan eq-bar" style="animation-delay: 0.2s;"></div>
+                            </div>
+                        </div>
+
+                        <div class="border border-cyber-cyan/20 p-3 bg-cyber-cyan/5 flex flex-col gap-4">
+                            <div class="flex justify-between items-center text-[10px] font-mono text-cyber-cyan uppercase border-b border-cyber-cyan/20 pb-2">
+                                <span><i class="fa-solid fa-microchip mr-1"></i> TACTICAL_HARDWARE</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center text-xs text-white font-mono border-b border-cyber-cyan/10 pb-2">
+                                <span><i class="fa-solid fa-headphones-simple mr-2 text-cyber-cyan"></i>SYS_AUDIO_FEEDBACK</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" class="sr-only peer" checked onchange="toggleAudio(this)">
+                                  <div class="w-9 h-5 bg-black border border-cyber-cyan/50 peer-focus:outline-none peer-focus:border-cyber-cyan rounded-sm peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-cyber-cyan after:border-cyber-cyan after:border after:h-4 after:w-4 after:transition-all peer-checked:bg-cyber-cyan shadow-[0_0_5px_rgba(0,240,255,0.2)]"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex justify-between items-center text-xs text-white font-mono">
+                                <span>AUTO_DISPATCH_UNITS</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" class="sr-only peer" onchange="toggleAutoDispatch(this)">
+                                  <div class="w-9 h-5 bg-black border border-cyber-cyan/50 peer-focus:outline-none peer-focus:border-cyber-cyan rounded-sm peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-cyber-cyan after:border-cyber-cyan after:border after:h-4 after:w-4 after:transition-all peer-checked:bg-cyber-cyan shadow-[0_0_5px_rgba(0,240,255,0.2)]"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex flex-col gap-2 font-mono text-xs">
+                                <div class="flex justify-between text-cyber-cyan/80">
+                                    <span>LIDAR_SENSITIVITY</span>
+                                    <span id="sens-val" class="text-white font-bold">85%</span>
+                                </div>
+                                <input type="range" min="10" max="100" value="85" oninput="document.getElementById('sens-val').innerText = this.value + '%'">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-1 font-mono">
+                            <label class="text-[10px] text-cyber-cyan/60 uppercase">> EXECUTE_ROUTINE:</label>
+                            <select id="commandType" class="w-full bg-cyber-panel border border-cyber-cyan/50 text-white text-sm p-2 outline-none disabled:opacity-30 disabled:border-gray-700" disabled>
+                                <option value="DEPLOY_SECURITY">INIT: Crowd_Support_Units</option>
+                                <option value="DEPLOY_MEDIC">INIT: Med_Evac_Protocol</option>
+                                <option value="DEPLOY_DRONE">INIT: Aerial_Surveillance_Drone</option>
+                                <option value="BROADCAST_MSG">INIT: PA_System_Override</option>
+                                <option value="LOCKDOWN_GATE">INIT: Sector_Lockdown</option>
+                                <option value="DIVERT_CROWD">INIT: Route_Diversion</option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col gap-1 font-mono">
+                            <label class="text-[10px] text-cyber-cyan/60 uppercase">> APPEND_DATA:</label>
+                            <input type="text" id="commandNotes" placeholder="Enter parameters..." class="w-full bg-cyber-panel border border-cyber-cyan/50 text-white text-sm p-2 outline-none placeholder-cyber-cyan/30 disabled:opacity-30 disabled:border-gray-700 focus:bg-cyber-cyan/10" disabled>
+                        </div>
+
+                        <button id="btnExecute" onclick="executeCommand()" class="mt-2 w-full bg-cyber-cyan/10 hover:bg-cyber-cyan text-cyber-cyan hover:text-black border border-cyber-cyan font-bold font-mono py-3 text-sm tracking-[0.2em] uppercase transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed shadow-[inset_0_0_10px_rgba(0,240,255,0.2)] hover:shadow-[0_0_20px_rgba(0,240,255,0.8)]" disabled>
+                            [ TRANSMIT_ORDER ]
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cyber-panel flex flex-col flex-1 min-h-[300px]">
+                    <div class="px-4 py-2 border-b border-cyber-cyan/20 bg-cyber-cyan/5 flex justify-between">
+                        <h3 class="font-mono text-sm tracking-widest text-cyber-cyan font-bold uppercase">> SYS.LOGS</h3>
+                        <div class="w-2 h-2 bg-cyber-green animate-pulse mt-1 shadow-[0_0_5px_#00ff66]" id="log-indicator"></div>
+                    </div>
+                    <div class="flex-1 p-3 overflow-y-auto space-y-2 font-mono text-xs max-h-[400px]" id="dispatchLogs"></div>
+                </div>
+            </div>
+        </main>
+
+        <section class="cyber-panel w-full flex flex-col relative overflow-hidden">
+            <div class="px-6 py-3 border-b border-cyber-cyan/20 flex justify-between items-center bg-cyber-cyan/5">
+                <h3 class="font-mono text-sm tracking-widest text-cyber-cyan font-bold uppercase"><i class="fa-solid fa-truck-medical mr-2"></i> EMERGENCY_ASSET_TRACKING</h3>
+                <span class="text-[10px] text-cyber-yellow font-mono border border-cyber-yellow px-2 py-0.5 shadow-[0_0_5px_#fcee0a] animate-pulse">ACTIVE_SOS: 1</span>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-cyber-cyan/20 font-mono">
+                
+                <div class="p-4 flex flex-col gap-3 bg-black/20">
+                    <h4 class="text-xs text-cyber-cyan/60 tracking-widest mb-2 flex items-center justify-between">
+                        CIVILIAN_SOS_SIGNALS
+                        <i class="fa-solid fa-mobile-screen-button text-cyber-cyan"></i>
+                    </h4>
+                    <div id="sos-card" class="border border-cyber-magenta bg-cyber-magenta/10 p-3 relative overflow-hidden transition-all duration-500">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-cyber-magenta animate-pulse"></div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-cyber-magenta font-bold text-sm drop-shadow-[0_0_5px_#ff003c]">MEDICAL_EMERGENCY</span>
+                            <span class="text-[10px] text-cyber-magenta/80 font-bold" id="sos-timer">0:02:14 AGO</span>
+                        </div>
+                        <div class="text-xs text-white mb-1">LOC: SOUTH_ENTRY_GATE</div>
+                        <div class="text-[10px] text-white/60">USER_ID: #8834 (APP_USER)</div>
+                        <button id="sos-btn" onclick="acknowledgeSOS(this)" class="mt-3 w-full border border-cyber-magenta text-cyber-magenta font-bold tracking-widest text-[10px] py-2 hover:bg-cyber-magenta hover:text-black transition-colors shadow-[inset_0_0_8px_rgba(255,0,60,0.3)]">
+                            [ ACKNOWLEDGE / DISPATCH ]
+                        </button>
+                    </div>
+                    <div class="border border-cyber-cyan/30 bg-black/50 p-3 opacity-60">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-cyber-cyan text-xs">CROWD_CRUSH_WARN</span>
+                            <span class="text-[10px] text-cyber-cyan/50">RESOLVED</span>
+                        </div>
+                        <div class="text-[10px] text-white/50">LOC: MAIN_SHRINE</div>
+                    </div>
+                </div>
+
+                <div class="p-4 flex flex-col gap-3 bg-black/20">
+                    <h4 class="text-xs text-cyber-cyan/60 tracking-widest mb-2 flex items-center justify-between">
+                        EVAC_VEHICLE_STATUS
+                        <i class="fa-solid fa-truck-fast text-cyber-cyan"></i>
+                    </h4>
+                    <div class="flex items-center justify-between p-3 border border-cyber-green bg-cyber-green/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-cyber-green/20 border border-cyber-green flex items-center justify-center">
+                                <i class="fa-solid fa-truck-medical text-cyber-green"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs text-white font-bold">AMB-01 (ICU)</div>
+                                <div class="text-[10px] text-cyber-green">STATUS: STANDBY</div>
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-right">
+                            <div class="text-white/60">ZONE_B_PARKING</div>
+                            <div class="text-cyber-cyan font-bold">ETA: 0 MIN</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 border border-cyber-yellow bg-cyber-yellow/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-cyber-yellow/20 border border-cyber-yellow flex items-center justify-center">
+                                <i class="fa-solid fa-truck-medical text-cyber-yellow"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs text-white font-bold">AMB-02 (BLS)</div>
+                                <div class="text-[10px] text-cyber-yellow animate-pulse font-bold">STATUS: EN_ROUTE</div>
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-right">
+                            <div class="text-white/60">TO: SOUTH_GATE</div>
+                            <div class="text-cyber-yellow font-bold">ETA: 2.5 MIN</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 flex flex-col gap-3 bg-black/20">
+                    <h4 class="text-xs text-cyber-cyan/60 tracking-widest mb-2 flex items-center justify-between">
+                        STATIONARY_HARDWARE_NODE
+                        <i class="fa-solid fa-server text-cyber-cyan"></i>
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="border border-cyber-cyan/30 p-2 bg-black hover:border-cyber-cyan transition-colors">
+                            <div class="flex justify-between">
+                                <i class="fa-solid fa-fire-extinguisher text-cyber-cyan"></i>
+                                <span class="text-[10px] text-cyber-green">100%</span>
+                            </div>
+                            <div class="mt-2 text-[10px] text-white font-bold">EXT_NODE_A1</div>
+                            <div class="text-[9px] text-cyber-cyan/60">MAIN_HALLWAY</div>
+                        </div>
+                        <div class="border border-cyber-magenta p-2 bg-cyber-magenta/10 hover:bg-cyber-magenta/20 transition-colors">
+                            <div class="flex justify-between">
+                                <i class="fa-solid fa-fire-extinguisher text-cyber-magenta animate-pulse"></i>
+                                <span class="text-[10px] text-cyber-magenta font-bold">24% (LOW)</span>
+                            </div>
+                            <div class="mt-2 text-[10px] text-white font-bold">EXT_NODE_B4</div>
+                            <div class="text-[9px] text-cyber-cyan/60">MEDITATION_ZN</div>
+                        </div>
+                        <div class="border border-cyber-cyan/30 p-2 bg-black hover:border-cyber-cyan transition-colors">
+                            <div class="flex justify-between">
+                                <i class="fa-solid fa-heart-pulse text-cyber-cyan"></i>
+                                <span class="text-[10px] text-cyber-green">ONLINE</span>
+                            </div>
+                            <div class="mt-2 text-[10px] text-white font-bold">AED_UNIT_01</div>
+                            <div class="text-[9px] text-cyber-cyan/60">NORTH_PLAZA</div>
+                        </div>
+                        <div class="border border-cyber-cyan/30 p-2 bg-black hover:border-cyber-cyan transition-colors">
+                            <div class="flex justify-between">
+                                <i class="fa-solid fa-suitcase-medical text-cyber-cyan"></i>
+                                <span class="text-[10px] text-cyber-green">SEALED</span>
+                            </div>
+                            <div class="mt-2 text-[10px] text-white font-bold">TRAUMA_KIT</div>
+                            <div class="text-[9px] text-cyber-cyan/60">SOUTH_ENTRY</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cyber-panel w-full flex flex-col relative overflow-hidden mt-2">
+            <div class="px-6 py-3 border-b border-cyber-cyan/20 flex justify-between items-center bg-cyber-cyan/5">
+                <h3 class="font-mono text-sm tracking-widest text-cyber-cyan font-bold uppercase"><i class="fa-solid fa-video mr-2"></i> SURVEILLANCE_MATRIX</h3>
+                <span class="text-[10px] text-cyber-green font-mono border border-cyber-green px-2 py-0.5 shadow-[0_0_5px_#00ff66]">CAMERAS_ONLINE: 42</span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-black/50">
+                <div class="border border-cyber-cyan/30 relative group overflow-hidden aspect-video bg-cyber-bg">
+                    <div class="absolute inset-0 cam-static opacity-30"></div>
+                    <div class="absolute inset-0 flex items-center justify-center mix-blend-screen opacity-20 group-hover:opacity-40 transition-opacity">
+                        <i class="fa-solid fa-users text-4xl text-cyber-cyan"></i>
+                    </div>
+                    <div class="absolute top-2 left-2 flex items-center gap-2">
+                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-mono text-white tracking-widest text-shadow-md">CAM_01 // NORTH_PLAZA</span>
+                    </div>
+                    <div class="absolute bottom-2 right-2 text-[10px] font-mono text-cyber-cyan/70">REC // OP_STABLE</div>
+                </div>
+                <div class="border border-cyber-cyan/30 relative group overflow-hidden aspect-video bg-cyber-bg">
+                    <div class="absolute inset-0 cam-static opacity-20"></div>
+                    <div class="absolute top-2 left-2 flex items-center gap-2">
+                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-mono text-white tracking-widest text-shadow-md">CAM_14 // MAIN_SHRINE</span>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center font-mono text-cyber-magenta opacity-70">
+                        [ DENSITY_WARNING ]
+                    </div>
+                </div>
+                <div class="border border-cyber-cyan/30 relative group overflow-hidden aspect-video bg-cyber-bg">
+                    <div class="absolute inset-0 cam-static opacity-40"></div>
+                    <div class="absolute top-2 left-2 flex items-center gap-2">
+                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-mono text-white tracking-widest text-shadow-md">DRONE_ALPHA // AIR_VIEW</span>
+                    </div>
+                    <div class="absolute inset-0 border border-cyber-cyan/20 m-4 pointer-events-none">
+                        <div class="absolute top-1/2 left-1/2 w-4 h-4 border border-cyber-cyan -translate-x-1/2 -translate-y-1/2"></div>
+                        <div class="absolute top-1/2 left-0 w-full h-[1px] bg-cyber-cyan/30 -translate-y-1/2"></div>
+                        <div class="absolute top-0 left-1/2 w-[1px] h-full bg-cyber-cyan/30 -translate-x-1/2"></div>
+                    </div>
+                </div>
+                <div class="border border-cyber-cyan/30 relative group overflow-hidden aspect-video bg-cyber-bg flex items-center justify-center">
+                    <span class="text-xs font-mono text-cyber-cyan/40 tracking-widest animate-pulse">SIGNAL_LOST...</span>
+                    <div class="absolute top-2 left-2 flex items-center gap-2 opacity-40">
+                        <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        <span class="text-[10px] font-mono text-white tracking-widest text-shadow-md">CAM_08 // SOUTH_ENTRY</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- WEB AUDIO API SYNTHESIZER (TECH SOUNDS) ---
+        let audioCtx;
+        let audioEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type, duration, vol=0.05) {
+            if (!audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playClick() { playTone(800, 'sine', 0.05, 0.03); }
+        function playType() { playTone(1200, 'square', 0.02, 0.02); }
+        function playAlert() { 
+            playTone(400, 'square', 0.2, 0.1); 
+            setTimeout(() => playTone(600, 'square', 0.2, 0.1), 200);
+        }
+        function playSuccess() {
+            if (!audioEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+        function playBootSequence() {
+            if(!audioCtx) return;
+            let time = 0;
+            for(let i=0; i<6; i++) {
+                setTimeout(() => playTone(Math.random()*1000 + 500, 'square', 0.05, 0.05), time);
+                time += 150;
+            }
+        }
+
+        // Global Event Listeners for Clicks and Typing
+        document.addEventListener('click', (e) => {
+            // Initialize audio context on first click
+            initAudio(); 
+            // Don't play click sound if clicking on an input (typing handles that)
+            if(e.target.tagName !== 'INPUT') playClick();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if(e.target.tagName === 'INPUT') playType();
+        });
+
+        function toggleAudio(cb) {
+            audioEnabled = cb.checked;
+            if(audioEnabled) {
+                initAudio();
+                playSuccess();
+            }
+        }
+        // --- END AUDIO SYNTHESIZER ---
+
+        let globalOperatorIdentifier = "UNKNOWN_OP";
+
+        function initiateBootSequence() {
+            const opInput = document.getElementById('admin-user');
+            const passInput = document.getElementById('admin-pass');
+            const loginBtn = document.getElementById('login-btn');
+            const logStream = document.getElementById('log-stream');
+            const bootLogs = document.getElementById('boot-logs');
+            const loginForm = document.getElementById('login-form');
+
+            if (passInput.value.length < 4) {
+                passInput.classList.add('border-cyber-magenta');
+                playAlert(); // Play error sound
+                setTimeout(() => passInput.classList.remove('border-cyber-magenta'), 1000);
+                return;
+            }
+
+            initAudio();
+            playSuccess();
+
+            let enteredOp = opInput.value.trim().toUpperCase();
+            if(enteredOp === "") enteredOp = "GUEST_OP";
+            globalOperatorIdentifier = enteredOp;
+
+            document.getElementById('display-operator').innerText = globalOperatorIdentifier;
+
+            loginBtn.disabled = true;
+            loginBtn.innerText = "[ VERIFYING... ]";
+            
+            setTimeout(() => {
+                loginForm.classList.add('hidden');
+                bootLogs.classList.remove('hidden');
+                
+                const sequence = [
+                    "> INITIALIZING BIO-METRIC HANDSHAKE...",
+                    "> ENCRYPTION KEY VALIDATED.",
+                    "> CONNECTING TO WIT-NODE SOLAPUR SERVER...",
+                    "> SYNCING SPATIAL ENGINE DATA...",
+                    "> ESTABLISHING SURVEILLANCE GRID...",
+                    "> FETCHING EMERGENCY ASSET TELEMETRY...",
+                    "> ACCESS GRANTED: WELCOME OPERATOR " + globalOperatorIdentifier + "."
+                ];
+
+                playBootSequence(); // Play computing sounds
+
+                sequence.forEach((text, i) => {
+                    setTimeout(() => {
+                        const p = document.createElement('p');
+                        p.innerText = text;
+                        if (i === sequence.length - 1) p.className = "text-cyber-green font-bold";
+                        logStream.appendChild(p);
+                        logStream.scrollTop = logStream.scrollHeight;
+                        if(i === sequence.length -1) playSuccess(); // Final boot sound
+                    }, i * 250);
+                });
+
+                setTimeout(() => {
+                    document.getElementById('login-screen').style.transform = "translateY(-100%)";
+                    const dashboard = document.getElementById('dashboard-ui');
+                    dashboard.classList.remove('pointer-events-none');
+                    dashboard.classList.replace('opacity-0', 'opacity-100');
+                    
+                    pushLog("NEXUS_UPLINK_ESTABLISHED. AWAITING CMD.", "ROOT", "SYSTEM ONLINE", "text-white", "border-cyber-cyan", "bg-cyber-cyan/5", true);
+                    
+                    startSimulations();
+                }, sequence.length * 250 + 800);
+            }, 800);
+        }
+
+        // HUD Clock Logic
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('hud-time').innerText = 
+                now.getHours().toString().padStart(2, '0') + ':' + 
+                now.getMinutes().toString().padStart(2, '0') + ':' + 
+                now.getSeconds().toString().padStart(2, '0');
+            document.getElementById('hud-date').innerText = 
+                now.getFullYear() + '.' + 
+                (now.getMonth()+1).toString().padStart(2, '0') + '.' + 
+                now.getDate().toString().padStart(2, '0');
+            requestAnimationFrame(updateClock);
+        }
+        updateClock();
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        let currentSelectedZone = null;
+        let currentZoneColor = null;
+
+        function selectZone(polygonElement) {
+            document.body.style.transform = "translate(1px, 1px)";
+            setTimeout(() => document.body.style.transform = "none", 50);
+
+            // Play targeting tone
+            playTone(1500, 'sine', 0.1, 0.05);
+
+            const mapInstruction = document.getElementById('map-instruction');
+            if(mapInstruction) {
+                mapInstruction.style.opacity = '0';
+                setTimeout(() => mapInstruction.remove(), 500);
+            }
+
+            document.querySelectorAll('.zone-polygon').forEach(el => {
+                el.classList.remove('selected-zone');
+            });
+
+            polygonElement.classList.add('selected-zone');
+
+            currentSelectedZone = polygonElement.getAttribute('data-zone');
+            const status = polygonElement.getAttribute('data-status');
+            const crowd = polygonElement.getAttribute('data-crowd');
+            currentZoneColor = polygonElement.getAttribute('data-color');
+
+            const targetZoneText = document.getElementById('targetZoneText');
+            targetZoneText.innerText = `>> ${currentSelectedZone.toUpperCase()}`;
+            
+            if(currentZoneColor === 'magenta') {
+                targetZoneText.className = 'text-lg font-bold text-cyber-magenta tracking-widest text-shadow-[0_0_10px_#ff003c]';
+            } else if(currentZoneColor === 'yellow') {
+                targetZoneText.className = 'text-lg font-bold text-cyber-yellow tracking-widest text-shadow-[0_0_10px_#fcee0a]';
+            } else {
+                targetZoneText.className = 'text-lg font-bold text-cyber-cyan tracking-widest text-shadow-[0_0_10px_#00f0ff]';
+            }
+
+            document.getElementById('targetStatus').innerText = status;
+            document.getElementById('targetCrowd').innerText = formatNumber(crowd);
+
+            document.getElementById('commandType').disabled = false;
+            document.getElementById('commandNotes').disabled = false;
+            document.getElementById('btnExecute').disabled = false;
+        }
+
+        function pushLog(commandText, target, notes, colorClass, borderClass, bgClass, isAuto = false) {
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                            now.getMinutes().toString().padStart(2, '0') + ':' + 
+                            now.getSeconds().toString().padStart(2, '0');
+            
+            const operator = isAuto ? "SYS.AUTO" : globalOperatorIdentifier;
+
+            const logEntry = `
+                <div class="border-l-2 ${borderClass} pl-2 py-1 mb-2 ${bgClass} font-mono animate-[pulse_0.2s_ease-in-out]">
+                    <div class="flex justify-between items-center mb-0.5">
+                        <span class="text-white/50 text-[10px]">${timeStr} // OP:${operator}</span>
+                    </div>
+                    <div class="${colorClass} font-bold text-sm tracking-wide">> ${commandText}</div>
+                    <div class="text-white text-xs mt-1">TGT: ${target}</div>
+                    <div class="text-white/70 text-[10px] mt-0.5 italic">DATA: "${notes}"</div>
+                </div>
+            `;
+
+            const logsContainer = document.getElementById('dispatchLogs');
+            logsContainer.insertAdjacentHTML('afterbegin', logEntry);
+            
+            const ind = document.getElementById('log-indicator');
+            ind.classList.replace('bg-cyber-green', 'bg-white');
+            setTimeout(() => ind.classList.replace('bg-white', 'bg-cyber-green'), 300);
+        }
+
+        function acknowledgeSOS(btnElement) {
+            pushLog("INIT: MED_EVAC_PROTOCOL", "SOUTH_ENTRY_GATE", "SOS ACKNOWLEDGED. AMB-02 ROUTED.", "text-cyber-green", "border-cyber-green", "bg-cyber-green/10", false);
+            
+            playSuccess(); // Play transmit success sound
+
+            const card = document.getElementById('sos-card');
+            card.className = "border border-cyber-green bg-cyber-green/10 p-3 relative overflow-hidden transition-all duration-500";
+            
+            const timer = document.getElementById('sos-timer');
+            timer.innerText = "DISPATCHED";
+            timer.className = "text-[10px] text-cyber-green font-bold";
+            
+            btnElement.innerText = "[ UNITS EN_ROUTE ]";
+            btnElement.className = "mt-3 w-full border border-cyber-green text-black bg-cyber-green font-bold tracking-widest text-[10px] py-2 transition-colors";
+            btnElement.disabled = true;
+        }
+
+        function toggleAutoDispatch(cb) {
+            if(cb.checked) {
+                pushLog("ROUTINE ACTIVATED: AUTO_DISPATCH", "GLOBAL", "AI crowd support algorithms active.", "text-cyber-green", "border-cyber-green", "bg-cyber-green/10", false);
+                playSuccess();
+            } else {
+                pushLog("ROUTINE DISABLED: AUTO_DISPATCH", "GLOBAL", "Returning to manual override mode.", "text-cyber-yellow", "border-cyber-yellow", "bg-cyber-yellow/10", false);
+                playTone(300, 'square', 0.2, 0.05); // Deactivation sound
+            }
+        }
+
+        function executeCommand() {
+            if (!currentSelectedZone) return;
+
+            playSuccess(); // Order Transmitted sound
+
+            const commandType = document.getElementById('commandType');
+            const commandNotes = document.getElementById('commandNotes');
+            const commandText = commandType.options[commandType.selectedIndex].text;
+            const notes = commandNotes.value || "NULL_DATA";
+
+            let indicatorColor = 'border-cyber-cyan';
+            let textColor = 'text-cyber-cyan';
+            let bgTint = 'bg-cyber-cyan/10';
+            
+            if (commandType.value === 'LOCKDOWN_GATE' || commandType.value === 'DEPLOY_MEDIC') {
+                indicatorColor = 'border-cyber-magenta';
+                textColor = 'text-cyber-magenta';
+                bgTint = 'bg-cyber-magenta/10';
+            } else if (commandType.value === 'BROADCAST_MSG') {
+                indicatorColor = 'border-cyber-yellow';
+                textColor = 'text-cyber-yellow';
+                bgTint = 'bg-cyber-yellow/10';
+            }
+
+            pushLog(commandText, currentSelectedZone.toUpperCase(), notes, textColor, indicatorColor, bgTint);
+            
+            const btn = document.getElementById('btnExecute');
+            btn.innerHTML = '[ UPLINK_SUCCESS ]';
+            btn.className = "mt-2 w-full bg-cyber-green text-black border border-cyber-green font-bold font-mono py-3 text-sm tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(0,255,102,0.8)]";
+            
+            const selectedPoly = document.querySelector('.selected-zone');
+            if(selectedPoly) {
+                const originalFill = selectedPoly.getAttribute('fill');
+                selectedPoly.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+                setTimeout(() => selectedPoly.setAttribute('fill', originalFill), 150);
+                setTimeout(() => selectedPoly.setAttribute('fill', 'rgba(255, 255, 255, 0.8)'), 200);
+                setTimeout(() => selectedPoly.setAttribute('fill', originalFill), 350);
+            }
+
+            setTimeout(() => {
+                btn.innerHTML = '[ TRANSMIT_ORDER ]';
+                btn.className = "mt-2 w-full bg-cyber-cyan/10 hover:bg-cyber-cyan text-cyber-cyan hover:text-black border border-cyber-cyan font-bold font-mono py-3 text-sm tracking-[0.2em] uppercase transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,240,255,0.2)] hover:shadow-[0_0_20px_rgba(0,240,255,0.8)]";
+                commandNotes.value = '';
+            }, 1500);
+        }
+
+        function startSimulations() {
+            setInterval(() => {
+                let totalCrowd = 0;
+                const maxGlobalCapacity = 26000;
+
+                document.querySelectorAll('.zone-polygon').forEach(el => {
+                    let currentCrowd = parseInt(el.getAttribute('data-crowd'));
+                    let flux = Math.floor(Math.random() * 35) - 15; 
+                    let newCrowd = Math.max(0, currentCrowd + flux);
+                    
+                    el.setAttribute('data-crowd', newCrowd);
+                    totalCrowd += newCrowd;
+
+                    if (el.classList.contains('selected-zone')) {
+                        document.getElementById('targetCrowd').innerText = formatNumber(newCrowd);
+                    }
+                });
+
+                document.getElementById('global-total').innerText = formatNumber(totalCrowd);
+                let percent = ((totalCrowd / maxGlobalCapacity) * 100).toFixed(1);
+                document.getElementById('load-percent').innerText = percent + '%';
+                document.getElementById('capacity-fill').style.width = percent + '%';
+
+                const globalThreat = document.getElementById('global-threat');
+                const loadText = document.getElementById('load-percent');
+                
+                if (percent > 85) {
+                    globalThreat.className = "bg-cyber-magenta/20 text-cyber-magenta border border-cyber-magenta text-[10px] px-2 py-0.5 font-mono animate-pulse";
+                    globalThreat.innerText = "THREAT: CRITICAL";
+                    loadText.className = "text-cyber-magenta font-bold";
+                } else if (percent > 70) {
+                    globalThreat.className = "bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow text-[10px] px-2 py-0.5 font-mono";
+                    globalThreat.innerText = "THREAT: ELEVATED";
+                    loadText.className = "text-cyber-yellow font-bold";
+                } else {
+                    globalThreat.className = "bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan text-[10px] px-2 py-0.5 font-mono";
+                    globalThreat.innerText = "THREAT: LOW";
+                    loadText.className = "text-cyber-green font-bold";
+                }
+            }, 3000);
+
+            setInterval(() => {
+                if(Math.random() > 0.7) { 
+                    const zones = ['zone-north', 'zone-south', 'zone-hall', 'zone-meditation'];
+                    const randomZoneId = zones[Math.floor(Math.random() * zones.length)];
+                    const zone = document.getElementById(randomZoneId);
+                    const zoneName = zone.getAttribute('data-zone');
+                    
+                    zone.classList.add('anomaly-glitch');
+                    pushLog("WARNING: UNEXPECTED CROWD SURGE", zoneName.toUpperCase(), "Camera Node 42 detects rapid density increase.", "text-cyber-magenta", "border-cyber-magenta", "bg-cyber-magenta/10", true);
+                    
+                    playAlert(); // Warning alarm sound
+
+                    setTimeout(() => {
+                        zone.classList.remove('anomaly-glitch');
+                        pushLog("STAT_CLEAR: DENSITY NORMALIZED", zoneName.toUpperCase(), "Flow rate restored to nominal.", "text-cyber-green", "border-cyber-green", "bg-cyber-green/10", true);
+                    }, 8000);
+                }
+            }, 15000);
+            
+            let sosSeconds = 134; 
+            setInterval(() => {
+                const timerEl = document.getElementById('sos-timer');
+                if(timerEl && timerEl.innerText.includes("AGO")) {
+                    sosSeconds++;
+                    const min = Math.floor(sosSeconds / 60);
+                    const sec = (sosSeconds % 60).toString().padStart(2, '0');
+                    timerEl.innerText = `0:0${min}:${sec} AGO`;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
